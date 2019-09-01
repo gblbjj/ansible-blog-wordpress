@@ -1,0 +1,110 @@
+---
+- name: install server to blog
+  hosts: blog
+  remote_user: gabriel
+  become: yes
+  
+  
+  tasks:
+    
+    - name: install all updates
+      yum:
+        name: '*'
+        update_cache: yes
+        state: latest
+    
+    - name: install packages requires
+      yum:
+        name: "{{ packages }}"
+      vars:
+        packages:
+        - httpd
+        - mariadb
+        - mariadb-server
+        - unzip
+        - wget
+        - vim
+        - curl
+        - MySQL-python
+        - yum-utils
+        - php-fpm
+        - php-common
+        - php-mbstring
+        - php-xmlrpc 
+        - php-soap 
+        - php-gd 
+        - php-xml 
+        - php-intl 
+        - php-mysqlnd 
+        - php-cli 
+        - php-ldap 
+        - php-zip 
+        - php-curl 
+        
+
+        
+    
+    - name: enable packages
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      with_items:
+        - httpd
+        - mariadb
+
+    - name: configuring databases
+      mysql_user:
+        name: pops
+        host: localhost
+        password: pops
+        priv: '*.*:ALL'
+        state: present
+    
+    - name: create databases
+      mysql_db:
+        name: wordpress
+        state: present
+    
+    - name: dowload wordpress
+      get_url:
+        url: https://wordpress.org/wordpress-5.2.2.tar.gz
+        dest: /tmp/wordpress-5.2.2.tar.gz
+        validate_certs: no
+    
+    - name: extract wordpress
+      unarchive: 
+        src: /tmp/wordpress-5.2.2.tar.gz
+        dest: /tmp/  
+        copy: no
+        
+    
+    - name: copy archives to html
+      shell: ' mv /tmp/wordpress/  /var/www/html '
+
+    - name: Copy sample config file
+      command: mv /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php creates=/var/www/html/wordpress/wp-config.php
+
+    
+    - name: copy archives to html
+      shell: ' systemctl stop firewalld && systemctl disable firewalld  '
+      
+
+    - name: config firewalld
+      firewalld: 
+        service: "{{ item }}"
+        permanent: yes
+        state: enabled
+      with_items:
+        - http
+        - https      
+    
+    - name: restart httpd
+      service:
+        name: httpd
+        state: restarted
+
+    
+        
+    
+
